@@ -22,7 +22,8 @@ class MultiConv1d(nn.Module):
                                         **config))
 
     def forward(self,input):
-        print input.size()
+        # print input.size()
+        print(input.size())
         tmp_outputs = list()
         for i,conv in enumerate(self.convs):
             tmp_input = input
