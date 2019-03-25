@@ -1,5 +1,5 @@
 # coding=utf-8
-import braindecode
+# import braindecode
 from torch import nn
 from eeggan.modules.layers.reshape import Reshape,PixelShuffle2d
 from eeggan.modules.layers.normalization import PixelNorm
@@ -11,7 +11,17 @@ from eeggan.modules.progressive import ProgressiveGenerator,ProgressiveGenerator
 from eeggan.modules.wgan import WGAN_I_Generator,WGAN_I_Discriminator
 from torch.nn.init import calculate_gain
 
-
+class Interpolate(nn.Module):
+	def __init__(self, scale_factor, mode):
+		super(Interpolate, self).__init__()
+		self.scale_factor = scale_factor
+		self.mode = mode
+		self.interp = nn.functional.interpolate
+		
+	def forward(self, x):
+		x = self.interp(x, scale_factor=self.scale_factor, mode=self.mode, align_corners=False)
+		return x
+		
 def create_disc_blocks(n_chans):
 	def create_conv_sequence(in_filters,out_filters):
 		return nn.Sequential(weight_scale(nn.Conv1d(in_filters,in_filters,9,padding=4),
@@ -76,7 +86,10 @@ def create_disc_blocks(n_chans):
 
 def create_gen_blocks(n_chans,z_vars):
 	def create_conv_sequence(in_filters,out_filters):
-		return nn.Sequential(nn.Upsample(mode='linear',scale_factor=2),
+		return nn.Sequential(
+			# nn.Upsample(mode='linear',scale_factor=2),
+								# nn.interpolate(scale_factor=2, mode='linear'),
+								Interpolate(scale_factor=2, mode='linear'),
 								weight_scale(nn.Conv1d(in_filters,out_filters,9,padding=4),
 														gain=calculate_gain('leaky_relu')),
 								nn.LeakyReLU(0.2),
@@ -91,7 +104,8 @@ def create_gen_blocks(n_chans,z_vars):
 								Reshape([[0],[1],[2],1]),
 								PixelShuffle2d([1,n_chans]))
 	def create_fade_sequence(factor):
-		return nn.Upsample(mode='bilinear',scale_factor=(2,1))
+		# return nn.Upsample(mode='bilinear',scale_factor=(2,1))
+		return Interpolate(scale_factor=(2,1), mode='bilinear')
 	blocks = []
 	tmp_block = ProgressiveGeneratorBlock(
 								nn.Sequential(weight_scale(nn.Linear(z_vars,50*12),

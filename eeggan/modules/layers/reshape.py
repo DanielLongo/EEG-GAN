@@ -85,13 +85,14 @@ class PixelShuffle2d(nn.Module):
 
 	def forward(self, input):
 		batch_size, channels, in_height, in_width = input.size()
+		batch_size = int(batch_size)
 		channels /= self.scale_kernel[0]*self.scale_kernel[1]
+		channels = int(channels)
 
 		out_height = in_height * self.scale_kernel[0]
 		out_width = in_width * self.scale_kernel[1]
-
 		input_view = input.contiguous().view(
-			batch_size, channels, self.scale_kernel[0], self.scale_kernel[1],
+			batch_size, int(channels), self.scale_kernel[0], self.scale_kernel[1],
 			in_height, in_width)
 
 		shuffle_out = input_view.permute(0, 1, 4, 2, 5, 3).contiguous()

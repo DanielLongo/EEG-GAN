@@ -100,6 +100,7 @@ class ProgressiveGenerator(nn.Module):
 	def forward(self,input):
 		fade = False
 		alpha = self.alpha
+		# print("initial input", input.shape)
 		for i in range(0,self.cur_block+1):
 			input = self.blocks[i](input,last=(i==self.cur_block))
 			if alpha<1. and i==self.cur_block-1:
@@ -109,6 +110,7 @@ class ProgressiveGenerator(nn.Module):
 		if fade:
 			tmp = self.blocks[i-1].fade_sequence(tmp)
 			input = alpha*input+(1.-alpha)*tmp
+		# print("final input", input.shape)
 		return input
 
 class ProgressiveDiscriminatorBlock(nn.Module):
@@ -133,7 +135,9 @@ class ProgressiveDiscriminatorBlock(nn.Module):
 	def forward(self,input,first=False):
 		if first:
 			input = self.in_sequence(input)
+		# print("input D", input.shape)
 		out = self.intermediate_sequence(input)
+		# print("out D", out.shape)
 		return out
 
 class ProgressiveGeneratorBlock(nn.Module):
@@ -156,7 +160,9 @@ class ProgressiveGeneratorBlock(nn.Module):
 		self.fade_sequence = fade_sequence
 
 	def forward(self,input,last=False):
+		# print("input", input.shape)
 		out = self.intermediate_sequence(input)
+		# print("out", out.shape)
 		if last:
 			out = self.out_sequence(out)
 		return out
