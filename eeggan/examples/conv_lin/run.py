@@ -97,6 +97,11 @@ losses_g = []
 i_epoch = 0
 z_vars_im = rng.normal(0, 1, size=(1000, n_z)).astype(np.float32)
 
+def normalize(batch):
+	batch = batch - batch.mean()
+	batch = batch / batch.std()
+	batch = batch / np.abs(batch).max()
+	return batch
 
 def main():
 	for i_block in range(i_block_tmp, n_blocks):
@@ -110,6 +115,7 @@ def main():
 			for i, eegs in enumerate(real_eegs):
 				if eegs.shape[0] != n_batch:
 					continue
+				eegs = normalize(eegs)
 			# i_epoch_tmp = 0
 			#
 			# if fade_alpha < 1:
