@@ -37,7 +37,9 @@ lr = 0.001
 n_blocks = 6
 rampup = 2000.
 # block_epochs = [2000, 4000, 4000, 4000, 4000, 4000]
-block_epochs = [101, 101, 101, 101, 101, 101]
+# block_epochs = [501, 501, 501, 501, 501, 501]
+block_epochs = [500] + [1000] * 5
+# block_epochs = [0] * 6
 
 subj_ind = int(os.getenv('SLURM_ARRAY_TASK_ID', '0'))
 task_ind = 0  # subj_ind
@@ -49,7 +51,7 @@ random.seed(task_ind)
 rng = np.random.RandomState(task_ind)
 csv_file = "/mnt/data1/eegdbs/all_reports_impress_blanked-2019-02-23.csv"
 # real_eegs = EEGDataset("/mnt/data1/eegdbs/SEC-0.1/stanford/", csv_file=csv_file, num_examples=200, num_channels=44, length=input_length)
-real_eegs = EEGDataset("/mnt/data1/eegdbs/SEC-0.1/stanford/", num_examples=200, num_channels=44, length=input_length)
+real_eegs = EEGDataset("/mnt/data1/eegdbs/SEC-0.1/stanford/", num_examples=200*5, num_channels=44, length=input_length)
 # data = os.path.join('/data/schirrmr/hartmank/data/GAN/cnt', subj_names[subj_ind] + '_FCC4h.cnt')
 # EEG_data = joblib.load(data)
 # train_set = EEG_data['train_set']
@@ -237,6 +239,9 @@ def main():
 		fade_alpha = 0.
 		generator.model.cur_block += 1
 		discriminator.model.cur_block -= 1
+
+	torch.save(discriminator.state_dict(), "discriminator.pt")
+	torch.save(generator.state_dict(), "generator.pt")
 
 if __name__ == "__main__":
 	main()
