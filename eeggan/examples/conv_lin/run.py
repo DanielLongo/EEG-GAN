@@ -38,7 +38,7 @@ n_blocks = 6
 rampup = 2000.
 # block_epochs = [2000, 4000, 4000, 4000, 4000, 4000]
 # block_epochs = [501, 501, 501, 501, 501, 501]
-block_epochs = [500] + [1000] * 5
+block_epochs = [200] + [300] * 5
 # block_epochs = [0] * 6
 
 subj_ind = int(os.getenv('SLURM_ARRAY_TASK_ID', '0'))
