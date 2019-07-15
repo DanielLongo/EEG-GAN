@@ -8,7 +8,6 @@ import sys
 ## sys.path.append("/home/hartmank/git/GAN_clean")
 sys.path.append("../../../")
 sys.path.append("../../../../../")
-
 # from braindecode.datautil.iterators import get_balanced_batches
 from eeggan.examples.conv_lin.model import Generator, Discriminator
 from eeggan.util import weight_filler
@@ -18,8 +17,12 @@ from torch.autograd import Variable
 import numpy as np
 import matplotlib.pyplot as plt
 import random
-# from load_EEGs import EEGDataset
-from load_eegs_one_c import EEGDataset
+
+# Choose one or multiple
+
+from load_EEGs import EEGDataset
+# from load_eegs_one_c import EEGDataset
+
 from utils import save_EEG
 
 plt.switch_backend('agg')
@@ -36,10 +39,9 @@ n_z = 200
 lr = 0.001
 n_blocks = 6
 rampup = 2000.
-# block_epochs = [2000, 4000, 4000, 4000, 4000, 4000]
+block_epochs = [2000, 4000, 4000, 4000, 4000, 4000]
 # block_epochs = [501, 501, 501, 501, 501, 501]
-block_epochs = [200] + [300] * 5
-# block_epochs = [0] * 6
+# block_epochs = [200] + [300] * 5
 
 subj_ind = int(os.getenv('SLURM_ARRAY_TASK_ID', '0'))
 task_ind = 0  # subj_ind
@@ -50,9 +52,9 @@ torch.cuda.manual_seed_all(task_ind)
 random.seed(task_ind)
 rng = np.random.RandomState(task_ind)
 csv_file = "/mnt/data1/eegdbs/all_reports_impress_blanked-2019-02-23.csv"
-real_eegs = EEGDataset("/mnt/data1/eegdbs/SEC-0.1/stanford/", num_examples=200 * 5, num_channels=44,
+real_eegs = EEGDataset("/mnt/data1/eegdbs/SEC-0.1/stanford/", num_examples=438, num_channels=44,
                        length=input_length)
-
+print("data loaded")
 generator = Generator(1, n_z)
 discriminator = Discriminator(1)
 
@@ -111,11 +113,6 @@ def main():
                 # batches = get_balanced_batches(train.shape[0], rng, True, batch_size=n_batch)
                 # iters = int(len(batches) / n_critic)
                 #
-                # for it in range(iters):
-                # print("original eegs", eegs.shape)
-                # eegs = eegs[:, :, 0].view(n_batch, input_length, 1).cuda() #only one channel
-                # print("eegs", eegs[:, :, :, None].shape)
-                # eegs = eegs.cuda()
                 eegs = discriminator.model.downsample_to_block(
                     Variable(eegs[:, :, :, None].view(64, 1, input_length, 1), requires_grad=False),
                     discriminator.model.cur_block).cuda()
@@ -150,6 +147,9 @@ def main():
 
                 print('Epoch: %d   Loss_F: %.3f   Loss_R: %.3f   Penalty: %.4f   Loss_G: %.3f' % (
                     i_epoch, loss_d[0], loss_d[1], loss_d[2], loss_g))
+
+                # From forked implementation to save generations
+
                 # joblib.dump((i_epoch, losses_d, losses_g), os.path.join(modelpath, modelname % jobid + '_.data'),
                 #             compress=True)
                 # joblib.dump((i_epoch, losses_d, losses_g),
@@ -224,8 +224,8 @@ def main():
         generator.model.cur_block += 1
         discriminator.model.cur_block -= 1
 
-    torch.save(discriminator.state_dict(), "discriminator.pt")
-    torch.save(generator.state_dict(), "generator.pt")
+    torch.save(discriminator.state_dict(), "discriminator-copyKay.pt")
+    torch.save(generator.state_dict(), "generator-copyKay.pt")
 
 
 if __name__ == "__main__":

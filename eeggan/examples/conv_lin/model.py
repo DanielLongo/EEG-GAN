@@ -21,7 +21,7 @@ class Interpolate(nn.Module):
 	def forward(self, x):
 		x = self.interp(x, scale_factor=self.scale_factor, mode=self.mode, align_corners=False)
 		return x
-		
+
 def create_disc_blocks(n_chans):
 	def create_conv_sequence(in_filters,out_filters):
 		return nn.Sequential(weight_scale(nn.Conv1d(in_filters,in_filters,9,padding=4),
