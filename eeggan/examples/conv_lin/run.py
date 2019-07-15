@@ -20,8 +20,8 @@ import random
 
 # Choose one or multiple
 
-from load_EEGs import EEGDataset
-# from load_eegs_one_c import EEGDataset
+#from load_EEGs import EEGDataset
+from load_eegs_one_c import EEGDataset
 
 from utils import save_EEG
 
