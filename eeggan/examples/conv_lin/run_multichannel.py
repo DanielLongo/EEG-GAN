@@ -143,7 +143,7 @@ def main():
                 generator.eval()
                 discriminator.eval()
                 print("batch_fake", batch_fake.cpu().detach().numpy().shape)
-                np.save("./saved_runs/200-1-" + str(i_epoch), batch_fake.cpu().detach().view(n_batch, -1, 1).numpy()[0])
+                np.save("./saved_runs/multi-0-" + str(i_epoch), batch_fake.cpu().detach().view(n_batch, -1, 44).numpy()[0])
 
                 print('Epoch: %d   Loss_F: %.3f   Loss_R: %.3f   Penalty: %.4f   Loss_G: %.3f' % (
                     i_epoch, loss_d[0], loss_d[1], loss_d[2], loss_g))
