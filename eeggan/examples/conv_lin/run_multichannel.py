@@ -72,8 +72,8 @@ fade_alpha = 1.
 generator.model.alpha = fade_alpha
 discriminator.model.alpha = fade_alpha
 
-generator = generator # add .cuda()
-discriminator = discriminator # add .cuda()
+generator = generator.cuda()
+discriminator = discriminator.cuda()
 generator.train()
 discriminator.train()
 
@@ -94,7 +94,7 @@ def main():
     for i_block in range(i_block_tmp, n_blocks):
         c = 0
 
-        # train_tmp = discriminator.model.downsample_to_block(Variable(torch.from_numpy(train) # add .cuda(), volatile=True),
+        # train_tmp = discriminator.model.downsample_to_block(Variable(torch.from_numpy(train).cuda(), volatile=True),
         # discriminator.model.cur_block).data.cpu()
 
         for i_epoch in range(i_epoch_tmp, block_epochs[i_block]):
@@ -115,25 +115,25 @@ def main():
                 #
                 eegs = discriminator.model.downsample_to_block(
                     Variable(eegs[:, :, :, None].view(64, 1, input_length, num_channels), requires_grad=False),
-                    discriminator.model.cur_block) # add .cuda()
+                    discriminator.model.cur_block).cuda()
                 # print("downsized", eegs.shape)
                 for i_critic in range(n_critic):
                     # train_batches = train_tmp[batches[it * n_critic + i_critic]]
-                    batch_real = Variable(eegs, requires_grad=True) # add .cuda()  # .view(n_batch, 1, input_length, 1)
+                    batch_real = Variable(eegs, requires_grad=True).cuda()  # .view(n_batch, 1, input_length, 1)
                     # print("input batch", batch_real.shape)
 
                     # z_vars = rng.normal(0, 1, size=(len(batches[it * n_critic + i_critic]), n_z)).astype(np.float32)
                     z_vars = rng.normal(0, 1, size=(n_batch, n_z)).astype(np.float32)
                     # print("z_vars", z_vars.shape)
-                    # z_vars = Variable(torch.from_numpy(z_vars), volatile=True) # add .cuda()
-                    z_vars = Variable(torch.from_numpy(z_vars), requires_grad=False) # add .cuda()
+                    # z_vars = Variable(torch.from_numpy(z_vars), volatile=True).cuda()
+                    z_vars = Variable(torch.from_numpy(z_vars), requires_grad=False).cuda()
                     # print("z_vars", z_vars.size())
-                    batch_fake = Variable(generator(z_vars).data, requires_grad=True) # add .cuda()
+                    batch_fake = Variable(generator(z_vars).data, requires_grad=True).cuda()
 
                     loss_d = discriminator.train_batch(batch_real, batch_fake)
                     assert (np.all(np.isfinite(loss_d)))
                 z_vars = rng.normal(0, 1, size=(n_batch, n_z)).astype(np.float32)
-                z_vars = Variable(torch.from_numpy(z_vars), requires_grad=True) # add .cuda()
+                z_vars = Variable(torch.from_numpy(z_vars), requires_grad=True).cuda()
                 loss_g = generator.train_batch(z_vars, discriminator)
 
             losses_d.append(loss_d)
@@ -162,7 +162,7 @@ def main():
                 # train_fft = np.fft.rfft(train_tmp.numpy(), axis=2)
                 # train_amps = np.abs(train_fft).mean(axis=3).mean(axis=0).squeeze()
                 #
-                # z_vars = Variable(torch.from_numpy(z_vars_im), volatile=True) # add .cuda()
+                # z_vars = Variable(torch.from_numpy(z_vars_im), volatile=True).cuda()
                 # batch_fake = generator(z_vars)
                 # fake_fft = np.fft.rfft(batch_fake.data.cpu().numpy(), axis=2)
                 # fake_amps = np.abs(fake_fft).mean(axis=3).mean(axis=0).squeeze()
