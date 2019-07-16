@@ -94,7 +94,7 @@ def main():
     for i_block in range(i_block_tmp, n_blocks):
         c = 0
 
-        # train_tmp = discriminator.model.downsample_to_block(Variable(torch.from_numpy(train).cuda(), volatile=True),
+        # train_tmp = discriminator.model.downsample_to_block(Variable(torch.from_numpy(train) # add .cuda(), volatile=True),
         # discriminator.model.cur_block).data.cpu()
 
         for i_epoch in range(i_epoch_tmp, block_epochs[i_block]):
@@ -139,7 +139,7 @@ def main():
             losses_d.append(loss_d)
             losses_g.append(loss_g)
 
-            if i_epoch % 100 == 0:
+            if i_epoch % 10 == 0:
                 generator.eval()
                 discriminator.eval()
                 print("batch_fake", batch_fake.cpu().detach().numpy().shape)
@@ -224,8 +224,8 @@ def main():
         generator.model.cur_block += 1
         discriminator.model.cur_block -= 1
 
-    torch.save(discriminator.state_dict(), "discriminator-copyKay.pt")
-    torch.save(generator.state_dict(), "generator-copyKay.pt")
+    torch.save(discriminator.state_dict(), "discriminator-copyKayMulti.pt")
+    torch.save(generator.state_dict(), "generator-copyKayMulti.pt")
 
 
 if __name__ == "__main__":

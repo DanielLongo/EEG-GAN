@@ -51,9 +51,10 @@ torch.manual_seed(task_ind)
 torch.cuda.manual_seed_all(task_ind)
 random.seed(task_ind)
 rng = np.random.RandomState(task_ind)
-csv_file = "/mnt/data1/eegdbs/all_reports_impress_blanked-2019-02-23.csv"
+#csv_file = "/mnt/data1/eegdbs/all_reports_impress_blanked-2019-02-23.csv"
+csv_file = None
 real_eegs = EEGDataset("/mnt/data1/eegdbs/SEC-0.1/stanford/", num_examples=438, num_channels=44,
-                       length=input_length)
+                       length=input_length, csv_file=csv_file)
 print("data loaded")
 generator = Generator(1, n_z)
 discriminator = Discriminator(1)
