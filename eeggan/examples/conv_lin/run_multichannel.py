@@ -18,27 +18,31 @@ import numpy as np
 import matplotlib.pyplot as plt
 import random
 
-# Choose one or multiple
-
-from load_EEGs import EEGDataset
+# from load_EEGs import EEGDataset
+from load_EEGs_improved import EEGDataset
 
 from utils import save_EEG
 
-plt.switch_backend('agg')
-os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+run_suffix = "test"
+
+# plt.switch_backend('agg')
+# os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 torch.backends.cudnn.enabled = True
 torch.backends.cudnn.benchmark = True
 
 n_critic = 5
-n_batch = 64
+n_batch = 8
 input_length = 768
 jobid = 0
 
 n_z = 200
 lr = 0.001
+# lr = .003
 n_blocks = 6
 rampup = 2000.
-block_epochs = [2000, 4000, 4000, 4000, 4000, 4000]
+# block_epochs = [2000, 4000, 4000, 4000, 4000, 4000]
+block_epochs = [5] * 6
+# block_epochs = [200, 400*5]
 # block_epochs = [501, 501, 501, 501, 501, 501]
 # block_epochs = [200] + [300] * 5
 
@@ -52,8 +56,8 @@ random.seed(task_ind)
 rng = np.random.RandomState(task_ind)
 csv_file = "/mnt/data1/eegdbs/all_reports_impress_blanked-2019-02-23.csv"
 num_channels = 44
-real_eegs = EEGDataset("/mnt/data1/eegdbs/SEC-0.1/stanford/", num_examples=438, num_channels=num_channels,
-                       length=input_length)
+real_eegs = EEGDataset("/mnt/data1/eegdbs/SEC-0.1/stanford/", num_examples=64, num_channels=num_channels,
+                       length=input_length, batch_size=n_batch, csv_file=csv_file)
 print("data loaded")
 generator = Generator(num_channels, n_z)
 discriminator = Discriminator(num_channels)
@@ -114,7 +118,7 @@ def main():
                 # iters = int(len(batches) / n_critic)
                 #
                 eegs = discriminator.model.downsample_to_block(
-                    Variable(eegs[:, :, :, None].view(64, 1, input_length, num_channels), requires_grad=False),
+                    Variable(eegs[:, :, :, None].view(n_batch, 1, input_length, num_channels), requires_grad=False),
                     discriminator.model.cur_block).cuda()
                 # print("downsized", eegs.shape)
                 for i_critic in range(n_critic):
@@ -129,6 +133,7 @@ def main():
                     z_vars = Variable(torch.from_numpy(z_vars), requires_grad=False).cuda()
                     # print("z_vars", z_vars.size())
                     batch_fake = Variable(generator(z_vars).data, requires_grad=True).cuda()
+                    # print("fake", batch_fake.size())
 
                     loss_d = discriminator.train_batch(batch_real, batch_fake)
                     assert (np.all(np.isfinite(loss_d)))
@@ -143,7 +148,7 @@ def main():
                 generator.eval()
                 discriminator.eval()
                 print("batch_fake", batch_fake.cpu().detach().numpy().shape)
-                np.save("./saved_runs/multi-0-" + str(i_epoch), batch_fake.cpu().detach().view(n_batch, -1, 44).numpy()[0])
+                np.save("./saved_runs/" + run_suffix + "-" + str(i_epoch), batch_fake.cpu().detach().view(n_batch, -1, 44).numpy()[0])
 
                 print('Epoch: %d   Loss_F: %.3f   Loss_R: %.3f   Penalty: %.4f   Loss_G: %.3f' % (
                     i_epoch, loss_d[0], loss_d[1], loss_d[2], loss_g))
@@ -224,8 +229,8 @@ def main():
         generator.model.cur_block += 1
         discriminator.model.cur_block -= 1
 
-    torch.save(discriminator.state_dict(), "discriminator-copyKayMulti.pt")
-    torch.save(generator.state_dict(), "generator-copyKayMulti.pt")
+    torch.save(discriminator.state_dict(), "discriminator-" + run_suffix + ".pt")
+    torch.save(generator.state_dict(), "generator-" + run_suffix + ".pt")
 
 
 if __name__ == "__main__":

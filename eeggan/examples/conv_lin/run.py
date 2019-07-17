@@ -21,7 +21,9 @@ import random
 # Choose one or multiple
 
 #from load_EEGs import EEGDataset
-from load_eegs_one_c import EEGDataset
+# from load_EEGs_improved import EEGDataset
+# from load_eegs_one_c import EEGDataset
+from load_eegs_one_c_improved import EEGDataset
 
 from utils import save_EEG
 
@@ -37,10 +39,11 @@ jobid = 0
 
 n_z = 200
 lr = 0.001
+# lr = .003
 n_blocks = 6
 rampup = 2000.
 block_epochs = [2000, 4000, 4000, 4000, 4000, 4000]
-# block_epochs = [501, 501, 501, 501, 501, 501]
+# block_epochs = [200, 400*5]
 # block_epochs = [200] + [300] * 5
 
 subj_ind = int(os.getenv('SLURM_ARRAY_TASK_ID', '0'))
@@ -140,11 +143,11 @@ def main():
             losses_d.append(loss_d)
             losses_g.append(loss_g)
 
-            if i_epoch % 100 == 0:
+            if i_epoch % 10 == 0:
                 generator.eval()
                 discriminator.eval()
                 print("batch_fake", batch_fake.cpu().detach().numpy().shape)
-                np.save("./saved_runs/200-1-" + str(i_epoch), batch_fake.cpu().detach().view(n_batch, -1, 1).numpy()[0])
+                np.save("./saved_runs/sIM-" + str(i_epoch), batch_fake.cpu().detach().view(n_batch, -1, 1).numpy()[0])
 
                 print('Epoch: %d   Loss_F: %.3f   Loss_R: %.3f   Penalty: %.4f   Loss_G: %.3f' % (
                     i_epoch, loss_d[0], loss_d[1], loss_d[2], loss_g))
@@ -225,8 +228,8 @@ def main():
         generator.model.cur_block += 1
         discriminator.model.cur_block -= 1
 
-    torch.save(discriminator.state_dict(), "discriminator-copyKay.pt")
-    torch.save(generator.state_dict(), "generator-copyKay.pt")
+    torch.save(discriminator.state_dict(), "discriminator-sIM.pt")
+    torch.save(generator.state_dict(), "generator-sIM.pt")
 
 
 if __name__ == "__main__":
