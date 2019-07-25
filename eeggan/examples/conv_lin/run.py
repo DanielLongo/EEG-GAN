@@ -8,6 +8,8 @@ import sys
 ## sys.path.append("/home/hartmank/git/GAN_clean")
 sys.path.append("../../../")
 sys.path.append("../../../../../")
+sys.path.append("../../../../../data_loaders/")
+sys.path.append("../../../../../GANs/")
 # from braindecode.datautil.iterators import get_balanced_batches
 from eeggan.examples.conv_lin.model import Generator, Discriminator
 from eeggan.util import weight_filler
@@ -36,15 +38,14 @@ n_critic = 5
 n_batch = 64
 input_length = 768
 jobid = 0
-
+suffix = "-L-single"
 n_z = 200
 lr = 0.001
 # lr = .003
 n_blocks = 6
 rampup = 2000.
-block_epochs = [2000, 4000, 4000, 4000, 4000, 4000]
-# block_epochs = [200, 400*5]
-# block_epochs = [200] + [300] * 5
+block_epochs = [2000] + [4000] * 5
+# block_epochs = [200] + [400] * 5
 
 subj_ind = int(os.getenv('SLURM_ARRAY_TASK_ID', '0'))
 task_ind = 0  # subj_ind
@@ -56,7 +57,7 @@ random.seed(task_ind)
 rng = np.random.RandomState(task_ind)
 #csv_file = "/mnt/data1/eegdbs/all_reports_impress_blanked-2019-02-23.csv"
 csv_file = None
-real_eegs = EEGDataset("/mnt/data1/eegdbs/SEC-0.1/stanford/", num_examples=438, num_channels=44,
+real_eegs = EEGDataset("/mnt/data1/eegdbs/SEC-0.1/stanford/", num_examples=64*3, num_channels=44,
                        length=input_length, csv_file=csv_file)
 print("data loaded")
 generator = Generator(1, n_z)
@@ -228,9 +229,10 @@ def main():
         generator.model.cur_block += 1
         discriminator.model.cur_block -= 1
 
-    torch.save(discriminator.state_dict(), "discriminator-sIM.pt")
-    torch.save(generator.state_dict(), "generator-sIM.pt")
+    torch.save(discriminator.state_dict(), "discriminator-" + suffix + ".pt")
+    torch.save(generator.state_dict(), "generator-" + suffix + ".pt")
 
 
 if __name__ == "__main__":
     main()
+    print("finished " + suffix)

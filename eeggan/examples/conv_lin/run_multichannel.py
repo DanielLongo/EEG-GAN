@@ -8,6 +8,8 @@ import sys
 ## sys.path.append("/home/hartmank/git/GAN_clean")
 sys.path.append("../../../")
 sys.path.append("../../../../../")
+sys.path.append("../../../../../data_loaders/")
+sys.path.append("../../../../../GANs/")
 # from braindecode.datautil.iterators import get_balanced_batches
 from eeggan.examples.conv_lin.model import Generator, Discriminator
 from eeggan.util import weight_filler
@@ -23,7 +25,8 @@ from load_EEGs_improved import EEGDataset
 
 from utils import save_EEG
 
-run_suffix = "test"
+run_suffix = "nnDl-L-multi"
+# run_suffix = "test"
 
 # plt.switch_backend('agg')
 # os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
@@ -31,7 +34,7 @@ torch.backends.cudnn.enabled = True
 torch.backends.cudnn.benchmark = True
 
 n_critic = 5
-n_batch = 8
+n_batch = 64
 input_length = 768
 jobid = 0
 
@@ -41,10 +44,9 @@ lr = 0.001
 n_blocks = 6
 rampup = 2000.
 # block_epochs = [2000, 4000, 4000, 4000, 4000, 4000]
-block_epochs = [5] * 6
-# block_epochs = [200, 400*5]
-# block_epochs = [501, 501, 501, 501, 501, 501]
-# block_epochs = [200] + [300] * 5
+block_epochs = [2000] + [4000] * 5
+# block_epochs = [200] + [400] * 5
+# block_epochs = [2] * 6
 
 subj_ind = int(os.getenv('SLURM_ARRAY_TASK_ID', '0'))
 task_ind = 0  # subj_ind
@@ -54,10 +56,10 @@ torch.manual_seed(task_ind)
 torch.cuda.manual_seed_all(task_ind)
 random.seed(task_ind)
 rng = np.random.RandomState(task_ind)
-csv_file = "/mnt/data1/eegdbs/all_reports_impress_blanked-2019-02-23.csv"
+csv_file = None # "/mnt/data1/eegdbs/all_reports_impress_blanked-2019-02-23.csv"
 num_channels = 44
-real_eegs = EEGDataset("/mnt/data1/eegdbs/SEC-0.1/stanford/", num_examples=64, num_channels=num_channels,
-                       length=input_length, batch_size=n_batch, csv_file=csv_file)
+real_eegs = EEGDataset("/mnt/data1/eegdbs/SEC-0.1/stanford/", num_examples=64 * 4, num_channels=num_channels,
+                       length=input_length, batch_size=n_batch, csv_file=csv_file, channels_last=True, squeeze=False)
 print("data loaded")
 generator = Generator(num_channels, n_z)
 discriminator = Discriminator(num_channels)
@@ -117,9 +119,15 @@ def main():
                 # batches = get_balanced_batches(train.shape[0], rng, True, batch_size=n_batch)
                 # iters = int(len(batches) / n_critic)
                 #
+
+                # eegs = discriminator.model.downsample_to_block(
+                #     Variable(eegs[:, :, :, None].view(n_batch, 1, input_length, num_channels), requires_grad=False),
+                #     discriminator.model.cur_block).cuda()
+                
                 eegs = discriminator.model.downsample_to_block(
-                    Variable(eegs[:, :, :, None].view(n_batch, 1, input_length, num_channels), requires_grad=False),
+                    Variable(eegs, requires_grad=False),
                     discriminator.model.cur_block).cuda()
+
                 # print("downsized", eegs.shape)
                 for i_critic in range(n_critic):
                     # train_batches = train_tmp[batches[it * n_critic + i_critic]]
@@ -229,9 +237,11 @@ def main():
         generator.model.cur_block += 1
         discriminator.model.cur_block -= 1
 
-    torch.save(discriminator.state_dict(), "discriminator-" + run_suffix + ".pt")
-    torch.save(generator.state_dict(), "generator-" + run_suffix + ".pt")
+        torch.save(discriminator.state_dict(), "discriminator-" + run_suffix + ".pt")
+        torch.save(generator.state_dict(), "generator-" + run_suffix + ".pt")
 
+    torch.save(discriminator.state_dict(), "discriminator-fb-" + run_suffix + ".pt")
+    torch.save(generator.state_dict(), "generator-fb-" + run_suffix + ".pt")
 
 if __name__ == "__main__":
     main()
