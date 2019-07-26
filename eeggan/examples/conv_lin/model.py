@@ -22,7 +22,7 @@ class Interpolate(nn.Module):
 		x = self.interp(x, scale_factor=self.scale_factor, mode=self.mode, align_corners=False)
 		return x
 
-def create_disc_blocks(n_chans):
+def create_disc_blocks(n_chans, n_out_linear=1):
 	def create_conv_sequence(in_filters,out_filters):
 		return nn.Sequential(weight_scale(nn.Conv1d(in_filters,in_filters,9,padding=4),
 														gain=calculate_gain('leaky_relu')),
@@ -75,8 +75,11 @@ def create_disc_blocks(n_chans):
 							  nn.Sequential(StdMap1d(),
 											create_conv_sequence(51,50),
 											Reshape([[0],-1]),
-											weight_scale(nn.Linear(50*12,1),
+											weight_scale(nn.Linear(50*12,n_out_linear),
 															gain=calculate_gain('linear'))),
+											# weight_scale(nn.Linear(50*12,300),
+															# gain=calculate_gain('linear'))),
+
 							  create_in_sequence(n_chans,50),
 							  None
 							  )
@@ -159,9 +162,9 @@ class Generator(WGAN_I_Generator):
 		return self.model(input)
 
 class Discriminator(WGAN_I_Discriminator):
-	def __init__(self,n_chans):
+	def __init__(self,n_chans, n_out_linear=1):
 		super(Discriminator,self).__init__()
-		self.model = ProgressiveDiscriminator(create_disc_blocks(n_chans))
+		self.model = ProgressiveDiscriminator(create_disc_blocks(n_chans, n_out_linear))
 
 	def forward(self,input):
 		return self.model(input)
