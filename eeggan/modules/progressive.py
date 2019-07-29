@@ -138,6 +138,7 @@ class ProgressiveDiscriminatorBlock(nn.Module):
 		# print("input D", input.shape)
 		out = self.intermediate_sequence(input)
 		# print("out D", out.shape)
+		# print("forward", torch.sum(out))
 		return out
 
 class ProgressiveGeneratorBlock(nn.Module):

@@ -26,7 +26,7 @@ import random
 # from load_EEGs_improved import EEGDataset
 # from load_eegs_one_c import EEGDataset
 from load_eegs_one_c_improved import EEGDataset
-
+from forward_model_dataloader_one_c import ForwardModelDataset
 from utils import save_EEG
 
 plt.switch_backend('agg')
@@ -38,7 +38,7 @@ n_critic = 5
 n_batch = 64
 input_length = 768
 jobid = 0
-suffix = "-L-single"
+suffix = "-L-single-csv"
 n_z = 200
 lr = 0.001
 # lr = .003
@@ -56,10 +56,13 @@ torch.cuda.manual_seed_all(task_ind)
 random.seed(task_ind)
 rng = np.random.RandomState(task_ind)
 #csv_file = "/mnt/data1/eegdbs/all_reports_impress_blanked-2019-02-23.csv"
-csv_file = None
+# csv_file = 
+csv_file = "/mnt/data1/eegdbs/all_reports_impress_blanked-2019-03-01.csv"
 real_eegs = EEGDataset("/mnt/data1/eegdbs/SEC-0.1/stanford/", num_examples=64*3, num_channels=44,
-                       length=input_length, csv_file=csv_file)
-print("data loaded")
+                      length=input_length, csv_file=csv_file)
+# print("SKJFSKFJSD", len(real_eegs))
+# real_eegs = ForwardModelDataset(num_examples=64*8, batch_size=64, length=input_length)
+# print("data loaded")
 generator = Generator(1, n_z)
 discriminator = Discriminator(1)
 
@@ -104,7 +107,10 @@ def main():
 
         for i_epoch in range(i_epoch_tmp, block_epochs[i_block]):
             real_eegs.shuffle()
-            for i, eegs in enumerate(real_eegs):
+            # for i, eegs in range(real_eegs):
+            for i in range(len(real_eegs)):
+                # eegs = real_eegs.getEEGs(i)
+                eegs = real_eegs[i]
                 if eegs.shape[0] != n_batch:
                     continue
                 eegs = normalize(eegs)
@@ -148,7 +154,7 @@ def main():
                 generator.eval()
                 discriminator.eval()
                 print("batch_fake", batch_fake.cpu().detach().numpy().shape)
-                np.save("./saved_runs/sIM-" + str(i_epoch), batch_fake.cpu().detach().view(n_batch, -1, 1).numpy()[0])
+                np.save("./saved_runs/" + suffix + str(i_epoch), batch_fake.cpu().detach().view(n_batch, -1, 1).numpy()[0])
 
                 print('Epoch: %d   Loss_F: %.3f   Loss_R: %.3f   Penalty: %.4f   Loss_G: %.3f' % (
                     i_epoch, loss_d[0], loss_d[1], loss_d[2], loss_g))
