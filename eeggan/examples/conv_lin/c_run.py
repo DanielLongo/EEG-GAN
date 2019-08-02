@@ -10,9 +10,8 @@ sys.path.append("../../../")
 sys.path.append("../../../../../")
 sys.path.append("../../../../../data_loaders/")
 sys.path.append("../../../../../GANs/")
-sys.path.append("../../../../../tsy935/RubinLab_neurotranslate_eeg-master/eeg/data/")
 # from braindecode.datautil.iterators import get_balanced_batches
-from eeggan.examples.conv_lin.model import Generator, Discriminator
+from eeggan.examples.conv_lin.c_model import Generator, Discriminator
 from eeggan.util import weight_filler
 import torch
 import torch.nn as nn
@@ -20,8 +19,6 @@ from torch.autograd import Variable
 import numpy as np
 import matplotlib.pyplot as plt
 import random
-from data_loader_raw import SeizureDataset
-from torch.utils.data import Dataset, DataLoader
 
 # Choose one or multiple
 
@@ -30,6 +27,7 @@ from torch.utils.data import Dataset, DataLoader
 # from load_eegs_one_c import EEGDataset
 from load_eegs_one_c_improved import EEGDataset
 from forward_model_dataloader_one_c import ForwardModelDataset
+from utils import save_EEG
 
 plt.switch_backend('agg')
 os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
@@ -40,13 +38,13 @@ n_critic = 5
 n_batch = 64
 input_length = 768
 jobid = 0
-suffix = "-M-temple"
+suffix = "testing"
 n_z = 200
 lr = 0.001
 # lr = .003
 n_blocks = 6
 rampup = 2000.
-block_epochs = [2000 / 1.5] + [4000 / 1.5] * 5
+block_epochs = [2000] + [4000] * 5
 # block_epochs = [200] + [400] * 5
 
 subj_ind = int(os.getenv('SLURM_ARRAY_TASK_ID', '0'))
@@ -58,15 +56,13 @@ torch.cuda.manual_seed_all(task_ind)
 random.seed(task_ind)
 rng = np.random.RandomState(task_ind)
 #csv_file = "/mnt/data1/eegdbs/all_reports_impress_blanked-2019-02-23.csv"
-csv_file = None
-# csv_file = "/mnt/data1/eegdbs/all_reports_impress_blanked-2019-03-01.csv"
+# csv_file = 
+
+csv_file = "/mnt/data1/eegdbs/all_reports_impress_blanked-2019-03-01.csv"
 # real_eegs = EEGDataset("/mnt/data1/eegdbs/SEC-0.1/stanford/", num_examples=64*3, num_channels=44,
                       # length=input_length, csv_file=csv_file)
-
-train_dataset = SeizureDataset("/mnt/home2/dlongo/eegML/tsy935/RubinLab_neurotranslate_eeg-master/eeg/data/trainSet_seizure_files.txt", num_channels=1, length=768, num_examples=64*3) #, num_folds=args.num_folds, fold_idx=fold_idx, cross_val=cross_val, split='train')
-train_loader = DataLoader(dataset=train_dataset, shuffle=True, batch_size=64)
 # print("SKJFSKFJSD", len(real_eegs))
-# real_eegs = ForwardModelDataset(num_examples=64*8, batch_size=64, length=input_length)
+real_eegs = ForwardModelDataset(num_examples=64*8, batch_size=64, length=input_length)
 # print("data loaded")
 generator = Generator(1, n_z)
 discriminator = Discriminator(1)
@@ -102,6 +98,15 @@ def normalize(batch):
     batch = batch / np.abs(batch).max()
     return batch
 
+def generate_y(batch_size, n_variations=8):
+    vals = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9][:n_variations]
+    onehot = torch.zeros(n_variations, n_variations).scatter_(1, torch.LongTensor(vals).view(n_variations,1), 1).view(n_variations, n_variations, 1, 1).squeeze()
+    assert(batch_size % n_variations == 0)
+    fill = torch.LongTensor(vals * int((batch_size/n_variations)))
+    fill = onehot[fill]
+    fill = fill[torch.randperm(fill.shape[0])]
+    return fill
+
 
 def main():
     for i_block in range(i_block_tmp, n_blocks):
@@ -109,15 +114,16 @@ def main():
 
         # train_tmp = discriminator.model.downsample_to_block(Variable(torch.from_numpy(train).cuda(), volatile=True),
         # discriminator.model.cur_block).data.cpu()
-        for i_epoch in range(int(i_epoch_tmp), int(block_epochs[i_block])):
-            # real_eegs.shuffle()
-            for eegs,_ , _, in train_loader:
-            # for i in range(len(real_eegs)):
+
+        for i_epoch in range(i_epoch_tmp, block_epochs[i_block]):
+            real_eegs.shuffle()
+            # for i, eegs in range(real_eegs):
+            for i in range(len(real_eegs)):
+                y = generate_y(64).cuda()
                 # eegs = real_eegs.getEEGs(i)
-                # eegs = real_eegs[i]
-                # if eegs.shape[0] != n_batch:
-                #     continue
-                eegs = eegs.type(torch.FloatTensor)
+                eegs = real_eegs[i]
+                if eegs.shape[0] != n_batch:
+                    continue
                 eegs = normalize(eegs)
                 # i_epoch_tmp = 0
                 #
@@ -144,13 +150,13 @@ def main():
                     # z_vars = Variable(torch.from_numpy(z_vars), volatile=True).cuda()
                     z_vars = Variable(torch.from_numpy(z_vars), requires_grad=False).cuda()
                     # print("z_vars", z_vars.size())
-                    batch_fake = Variable(generator(z_vars).data, requires_grad=True).cuda()
-
-                    loss_d = discriminator.train_batch(batch_real, batch_fake)
+                    batch_fake = Variable(generator(z_vars, y).data, requires_grad=True).cuda()
+                    loss_d = discriminator.train_batch(batch_real, batch_fake, y=y)
+                    # print("loss d", loss_d)
                     assert (np.all(np.isfinite(loss_d)))
                 z_vars = rng.normal(0, 1, size=(n_batch, n_z)).astype(np.float32)
                 z_vars = Variable(torch.from_numpy(z_vars), requires_grad=True).cuda()
-                loss_g = generator.train_batch(z_vars, discriminator)
+                loss_g = generator.train_batch(z_vars, discriminator, y=y)
 
             losses_d.append(loss_d)
             losses_g.append(loss_g)

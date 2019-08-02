@@ -46,7 +46,7 @@ class WGAN_Discriminator(GAN_Discriminator):
 		for p in self.parameters():
 			p.data.clamp_(-self.c,self.c)
 
-	def train_batch(self, batch_real, batch_fake):
+	def train_batch(self, batch_real, batch_fake, y=None):
 		"""
 		Train discriminator for one batch of real and fake data
 
@@ -67,11 +67,16 @@ class WGAN_Discriminator(GAN_Discriminator):
 		self.pre_train()
 
 		# Compute output and loss
-		fx_real = self.forward(batch_real)
+		if y is None:
+			fx_real = self.forward(batch_real)
+			fx_fake = self.forward(batch_fake)
+		else:
+			fx_real = self.forward(batch_real, y)
+			fx_fake = self.forward(batch_fake, y)
 		loss_real = -torch.mean(fx_real)
 		loss_real.backward()
 
-		fx_fake = self.forward(batch_fake)
+		# fx_fake = self.forward(batch_fake)
 		loss_fake = torch.mean(fx_fake)
 		loss_fake.backward()
 
@@ -109,7 +114,7 @@ class WGAN_Generator(GAN_Generator):
 		self.optimizer = optim.RMSprop(self.parameters(),lr=lr)
 		self.did_init_train = True
 
-	def train_batch(self, batch_noise, discriminator):
+	def train_batch(self, batch_noise, discriminator, y=None):
 		"""
 		Train generator for one batch of latent noise
 
@@ -129,7 +134,10 @@ class WGAN_Generator(GAN_Generator):
 		self.pre_train(discriminator)
 
 		# Generate and discriminate
-		gen = self.forward(batch_noise)
+		if y == None:
+			gen = self.forward(batch_noise)
+		else:
+			gen = self.forward(batch_noise, y)
 		disc = discriminator(gen)
 		loss = -torch.mean(disc)
 
@@ -202,7 +210,7 @@ class WGAN_I_Discriminator(GAN_Discriminator):
 		self.eps_center = eps_center
 		self.lambd_consistency_term = lambd_consistency_term
 
-	def train_batch(self, batch_real, batch_fake):
+	def train_batch(self, batch_real, batch_fake, y=None):
 		"""
 		Train discriminator for one batch of real and fake data
 
@@ -232,13 +240,17 @@ class WGAN_I_Discriminator(GAN_Discriminator):
 		mone = one * -1
 
 		batch_real,one,mone = utils.cuda_check([batch_real,one,mone])
-
-		fx_real = self(batch_real)
+		if y is None:
+			fx_real = self(batch_real)
+			fx_fake = self(batch_fake)
+		else:
+			fx_real = self(batch_real, y=y)
+			fx_fake = self(batch_fake, y=y)			
 		loss_real = fx_real.mean()
 		loss_real.backward(mone,
 						   retain_graph=(self.eps_drift>0 or self.eps_center>0))
 
-		fx_fake = self(batch_fake)
+		# fx_fake = self(batch_fake)
 		loss_fake = fx_fake.mean()
 		loss_fake.backward(one,
 						   retain_graph=(self.eps_drift>0 or self.eps_center>0))
@@ -264,7 +276,10 @@ class WGAN_I_Discriminator(GAN_Discriminator):
 		if self.distance_weighting:
 			dist = (loss_real-loss_fake).detach()
 			dist = dist.clamp(min=0)
-		loss_penalty = self.calc_gradient_penalty(batch_real, batch_fake)
+		if y is None:
+			loss_penalty = self.calc_gradient_penalty(batch_real, batch_fake)
+		else:
+			loss_penalty = self.calc_gradient_penalty(batch_real, batch_fake, y)
 		loss_penalty = self.lambd*dist*loss_penalty
 		loss_penalty.backward()
 
@@ -280,7 +295,7 @@ class WGAN_I_Discriminator(GAN_Discriminator):
 		return loss_real,loss_fake,loss_penalty,loss_drift,loss_center # return loss
 
 
-	def calc_gradient_penalty(self, batch_real, batch_fake):
+	def calc_gradient_penalty(self, batch_real, batch_fake, y=None):
 		"""
 		Improved WGAN gradient penalty
 
@@ -304,7 +319,10 @@ class WGAN_I_Discriminator(GAN_Discriminator):
 		interpolates = Variable(interpolates, requires_grad=True)
 		alpha,interpolates = utils.cuda_check([alpha,interpolates])
 
-		disc_interpolates = self(interpolates)
+		if y is None:
+			disc_interpolates = self(interpolates)
+		else:
+			disc_interpolates = self(interpolates, y)
 
 		ones = torch.ones(disc_interpolates.size())
 		interpolates,ones = utils.cuda_check([interpolates,ones])
@@ -349,7 +367,7 @@ class WGAN_I_Generator(GAN_Generator):
 		self.optimizer = optim.Adam(self.parameters(),lr=alpha,betas=betas)
 		self.did_init_train = True
 
-	def train_batch(self, batch_noise, discriminator):
+	def train_batch(self, batch_noise, discriminator, y=None):
 		"""
 		Train generator for one batch of latent noise
 
@@ -372,8 +390,12 @@ class WGAN_I_Generator(GAN_Generator):
 		batch_noise,mone = utils.cuda_check([batch_noise,mone])
 
 		# Generate and discriminate
-		gen = self(batch_noise)
-		disc = discriminator(gen)
+		if y is None:
+			gen = self(batch_noise)
+			disc = discriminator(gen)
+		else:
+			gen = self(batch_noise, y)
+			disc = discriminator(gen, y)
 		loss = disc.mean()
 		# Backprop gradient
 		loss.backward(mone)
